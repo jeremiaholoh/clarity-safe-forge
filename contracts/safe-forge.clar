@@ -5,6 +5,7 @@
 (define-constant err-owner-only (err u100))
 (define-constant err-invalid-template (err u101))
 (define-constant err-template-exists (err u102))
+(define-constant err-already-validated (err u103))
 
 ;; Data vars
 (define-map templates 
@@ -14,7 +15,8 @@
     version: (string-ascii 32),
     validated: bool,
     created-by: principal,
-    timestamp: uint
+    timestamp: uint,
+    last-modified: uint
   }
 )
 
@@ -34,7 +36,8 @@
             version: version,
             validated: false,
             created-by: tx-sender,
-            timestamp: block-height
+            timestamp: block-height,
+            last-modified: block-height
           }
         )
         (var-set template-counter template-id)
@@ -45,12 +48,19 @@
 (define-public (validate-template (template-id uint))
   (if (is-eq tx-sender contract-owner)
     (match (map-get? templates {template-id: template-id})
-      template (begin
-        (map-set templates 
-          {template-id: template-id}
-          (merge template {validated: true})
-        )
-        (ok true))
+      template (if (get validated template)
+                err-already-validated
+                (begin
+                  (map-set templates 
+                    {template-id: template-id}
+                    (merge template 
+                      { 
+                        validated: true,
+                        last-modified: block-height
+                      }
+                    )
+                  )
+                  (ok true)))
       err-invalid-template)
     err-owner-only))
 
