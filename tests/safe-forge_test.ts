@@ -40,7 +40,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-  name: "Ensure template validation works correctly",
+  name: "Ensure template validation works correctly and prevents double validation",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const owner = accounts.get('deployer')!;
 
@@ -56,15 +56,24 @@ Clarinet.test({
         'validate-template',
         [types.uint(1)],
         owner.address
+      ),
+      Tx.contractCall(
+        'safe-forge',
+        'validate-template',
+        [types.uint(1)],
+        owner.address
       )
     ]);
 
-    assertEquals(block.receipts.length, 2);
+    assertEquals(block.receipts.length, 3);
     
     // Check template registration
     block.receipts[0].result.expectOk().expectUint(1);
     
-    // Check validation success
+    // Check first validation success
     block.receipts[1].result.expectOk().expectBool(true);
+
+    // Check second validation fails
+    block.receipts[2].result.expectErr().expectUint(103);
   },
 });
